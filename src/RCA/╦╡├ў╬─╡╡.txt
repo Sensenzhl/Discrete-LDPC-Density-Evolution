@@ -1,0 +1,9 @@
+说明文档
+
+main_RCA main文件
+
+接口：Base_1原型图
+      snr_start起始snr
+      p：puncuture的列数
+      
+   其他接口无关
