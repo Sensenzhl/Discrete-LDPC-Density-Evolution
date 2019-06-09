@@ -1,0 +1,20 @@
+matrix = [];
+delta = 0.1;
+for a = -40:0.1:40
+    for b = -40:0.1:40
+        R_original = 2 * atanh(tanh(a/2)*tanh(b/2));
+        R = quantize_message(R_original);
+        matrix = [;];
+    end    
+end
+
+
+function [R]=quantize_message(R_original,delta)
+    if R_original >= delta / 2
+        R = delta * floor(w/delta + 1/2);
+    elseif R_original <= -delta / 2
+        R = delta * floor(w/delta - 1/2);
+    else
+        R = 0;
+    end
+end
