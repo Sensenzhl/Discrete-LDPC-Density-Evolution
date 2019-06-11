@@ -228,8 +228,6 @@ double (*vector_initialization(double delta))[convolution_length]{
 	return vector;
 }
 
-
-
 double func1(double x){
 	return x;
 }
@@ -288,11 +286,15 @@ double *quantize_message(double(*f)(double, double), double variance, double del
 {
 	double Q_value;
 	int    length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+	int    j = 0;	
+	double k_low = ceil(min/QUANTIZE_DELTA);
+	double k_max = max / QUANTIZE_DELTA;
+	double i;
+	double w;
+	int    idx;
 	double *Q_value_quantized = new double[length];
-	int    j = 0;
-	double i,w;
 
-	for (double k = ceil(min/QUANTIZE_DELTA); k * QUANTIZE_DELTA < max; k++)
+	for (int k = k_low; k < k_max; k++)
 	{
 		i = k * QUANTIZE_DELTA;
 		w = f(i, variance);
@@ -304,8 +306,9 @@ double *quantize_message(double(*f)(double, double), double variance, double del
 		else
 			Q_value = 0;
 
-		Q_value_quantized[j] = Q_value;		
-		j++;
+		idx = (int)(k-k_low);
+
+		Q_value_quantized[idx] = Q_value;	
 	}
 
 	return Q_value_quantized;

@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 	}
 
 	printf("************************************ Copying into PDF_MATRIX ************************************ \n");
-	// Copy data and convet them into PDF_MATRIX HB, thus the onrigal matrix is tranformed into a PDF matrix
+	// Copy data and convert them into PDF_MATRIX HB, thus the onrigal matrix is tranformed into a PDF matrix
 	PDF_MATRIX HB(M,N);
 
 	for (int i=0; i<M; i++)

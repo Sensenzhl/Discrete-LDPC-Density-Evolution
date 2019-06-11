@@ -54,12 +54,21 @@ typedef struct PDF_Element_AWGN
 }PDF_Element_AWGN;
 
 
+//typedef struct PDF_Element
+//{
+//	int    max = MAX_RANGE;
+//	int    min = MIN_RANGE;
+//	int    length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+//	double *pdf = new double[length];
+//
+//}PDF_Element;
+
 typedef struct PDF_Element
 {
-	int    max = MAX_RANGE;
-	int    min = MIN_RANGE;
-	int    length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
-	double *pdf = new double[length];
+	int    max;
+	int    min;
+	int    length;
+	double *pdf;
 
 }PDF_Element;
 
@@ -117,8 +126,10 @@ class PDF_MATRIX
 	    //bool pdf_convolution(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);
 	    //bool pdf_convolution_RAYLEIGH(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);
 	    //bool pdf_convolution_AWGN(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);
-		//bool pdf_multiply_convolution(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);	    
-		bool pdf_convolution(PDF_Element const in_PDF1, PDF_Element in_PDF2, PDF_Element out_PDF, bool verbose);
+		//bool pdf_multiply_convolution(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);	  
+
+		//bool pdf_convolution(PDF_Element const in_PDF1, PDF_Element in_PDF2, PDF_Element out_PDF, bool verbose);
+		PDF_Element pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, bool verbose);
 	    bool pdf_convolution_RAYLEIGH(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose);
 	    bool pdf_convolution_AWGN(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose); 
 		bool pdf_multiply_convolution(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose);

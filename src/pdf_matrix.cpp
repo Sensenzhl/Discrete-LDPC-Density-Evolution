@@ -34,7 +34,7 @@ PDF_MATRIX::PDF_MATRIX(int row, int col)
 	is_AWGN = true;
 
 	this->m_lpBuf = new PDF_Element[matrix_Size];
-	memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element));	
+	memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element));
 }
 
 
@@ -75,7 +75,7 @@ PDF_MATRIX & PDF_MATRIX::operator = (PDF_MATRIX& obj)
 
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;   
 
-	printf(" matrix_Size is %d and length is %d \n",matrix_Size,length); 
+	printf(" matrix_Size is %d and length is %d \n",matrix_Size,length);
 
     if (m_lpBuf != NULL)
     {
@@ -328,7 +328,8 @@ bool PDF_MATRIX::pdf_convolution_AWGN(PDF_Element in_PDF1, PDF_Element in_PDF2, 
 	return true;
 }
 
-bool PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, PDF_Element out_PDF, bool verbose)
+//bool PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, PDF_Element out_PDF, bool verbose)
+PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, bool verbose)
 {
 	double  min = -DELTA_AWGN;
 	double  max = DELTA_AWGN;
@@ -340,8 +341,14 @@ bool PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, PDF_E
 	length_power_of_two = convert_power_of_two(length, verbose);
 
 	double *pdf1 = new double[length];
-	double *pdf2 = new double[length];	
+	double *pdf2 = new double[length];
 	double *pdf_out = new double[length];
+
+	PDF_Element out_PDF;
+	out_PDF.max = MAX_RANGE;
+	out_PDF.min = MIN_RANGE;
+	out_PDF.length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+	out_PDF.pdf = new double[length];
 
 	if (verbose)
 	{
@@ -412,7 +419,8 @@ bool PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, PDF_E
 	//delete [] inVec2;
 	//delete [] outVec4;
 
-	return true;
+	//return true;
+	return out_PDF;
 }
 
 
@@ -551,18 +559,21 @@ bool Judge_llr(PDF_MATRIX in_MATRIX, bool is_AWGN, bool verbose)
 			if (l != i)
 			{
 				pdf_element_iter = m_lpBuf[l * col + i];
-				in_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, pdf_element_tmp, verbose);
+				//in_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, pdf_element_tmp, verbose);
+				pdf_element_tmp = in_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, verbose);
 			}
 		}
 
 		if(is_AWGN)
 		{
-			in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN, pdf_element_tmp, verbose);
+			//in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN, pdf_element_tmp, verbose);
+			pdf_element_tmp = in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN, verbose);
 		}
 
 		else
 		{
-			in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, pdf_element_tmp, verbose);
+			//in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, pdf_element_tmp, verbose);
+			pdf_element_tmp = in_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, verbose);
 		}
 
 		for (int m = 0; m < length; m++)
@@ -615,7 +626,11 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 	bool push_seccess = false;
 	bool clear_seccess = false;
 
-	PDF_MATRIX tmp_MATRIX = HB;
+	PDF_MATRIX tmp_MATRIX; 
+	tmp_MATRIX = HB;
+
+	printf("*************************************** row and col of tmp_MATRIX are %d and %d ************************************* \n",tmp_MATRIX.getRow(),tmp_MATRIX.getCol());
+
 	PDF_MATRIX tmp_MATRIX2;
 	PDF_MATRIX out_MATRIX;
 
@@ -691,10 +706,11 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 			push_seccess = false;
 
 			// Clear tmp_MATRIX2
-			clear_seccess = tmp_MATRIX2.clear(verbose);
-			clear_seccess = false;
+			clear_seccess = tmp_MATRIX2.clear(verbose);		
 
 			printf("///////// clear is seccess or not : %d //////////\n", clear_seccess);
+			clear_seccess = false;
+
 			printf("///////// assignment done //////////\n");
 			//free tmp_MATRIX2;
 			//PDF_MATRIX tmp_MATRIX2;
@@ -761,6 +777,16 @@ bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN
 
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;	
 
+	in_PDF_AWGN.max = MAX_RANGE;
+	in_PDF_AWGN.min = MIN_RANGE;
+	in_PDF_AWGN.length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+	in_PDF_AWGN.pdf = quantize_message(pdf_awgn_func, 1, delta, min, max);
+
+	in_PDF_RAYLEIGH.max = MAX_RANGE;
+	in_PDF_RAYLEIGH.min = MIN_RANGE;
+	in_PDF_RAYLEIGH.length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+	in_PDF_RAYLEIGH.pdf = quantize_message(pdf_Rayleigh_func, 1, delta, min, max);
+
 	//for(int i = 0; i < row; i++)
 	for(int i = 0; i < 1; i++)
 	{
@@ -782,21 +808,24 @@ bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN
 			for (int l = 0; l < row - 1; l++)
 			{
 				//out_MATRIX.pdf_convolution_AWGN(PDF_Element_AWGN const in_PDF1, PDF_Element_AWGN const PDF_Element_AWGN, PDF_Element out_PDF);
-				if(verbose)
-					printf("///// convolution in row update: %d. \n", l);
+				//if(verbose)
+				printf("///// convolution in row update: %d. \n", l);
 
 				if(l != i)
 				{
 					pdf_element_iter = local_Buf[l * col + j];
-					out_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, pdf_element_tmp, verbose);
+					//out_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, pdf_element_tmp, verbose);
+					pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, pdf_element_iter, verbose);
 				}
 			}
 
 			//out_MATRIX.pdf_convolution_AWGN(PDF_Element_AWGN const in_PDF1, PDF_Element_AWGN const out_PDF, PDF_Element_AWGN out_PDF);
 			if(is_AWGN)
-				out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN , pdf_element_tmp, verbose);
+				//out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN , pdf_element_tmp, verbose);
+				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN, verbose);
 			else
-				out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH , pdf_element_tmp, verbose);
+				//out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH , pdf_element_tmp, verbose);
+				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, verbose);
 
 			//out_MATRIX.m_lpBuf[i * col + j] = pdf_element_tmp;
 			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, row, col, 0, length, verbose);
@@ -861,9 +890,11 @@ bool matrix_column_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_A
 			}
 
 			if(is_AWGN)
-				out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN , pdf_element_tmp, verbose);
+				//out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN , pdf_element_tmp, verbose);
+				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_AWGN, verbose);
 			else
-				out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, pdf_element_tmp, verbose);
+				//out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, pdf_element_tmp, verbose);
+				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, verbose);
 
 			//bool push_seccess = out_MATRIX.m_lpBuf[i * col + j] = pdf_element_tmp;
 			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, row, col, 0, length, verbose);
