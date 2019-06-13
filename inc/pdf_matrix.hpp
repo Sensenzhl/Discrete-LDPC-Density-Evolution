@@ -1,10 +1,10 @@
 #ifndef _PDF_MATRIX_HPP_
 #define _PDF_MATRIX_HPP_
 
-#define MAX_RANGE              20
-#define MIN_RANGE              -20
-#define QUANTIZE_DELTA         0.1
-#define NUMBER_OF_INTERATION   50
+#define MAX_RANGE                              20
+#define MIN_RANGE              				   -20
+#define NUMBER_OF_INTERATION   				   50
+#define QUANTIZE_DELTA                         0.01
 
 typedef struct Complex
 {
@@ -102,22 +102,24 @@ class PDF_MATRIX
 		//bool is_power_of_two(int num);
 		//int  get_computation_layers(int num);         // calculate the layers of computation needed for FFT
 		//PDF_MATRIX(bool is_AWGN);
+
 		PDF_MATRIX();
 		PDF_MATRIX(int row, int col);
 		~PDF_MATRIX();
 
 		PDF_Element operator()(int i, int j, int Col, bool is_AWGN);  //Operate like MATLAB MATRIX
 		PDF_MATRIX & operator = (PDF_MATRIX& obj);
+		PDF_Element *getPDF(){return m_lpBuf;}
+		//bool getPDF_array(int i, int j);
+		PDF_Element get_element(int i, int j);
+		PDF_Element pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, bool verbose);
 
 		int getRow(){return Row;}
 		int getCol(){return Col;}
 
-		PDF_Element *getPDF(){return m_lpBuf;}
-		//bool getPDF_array(int i, int j);
-		PDF_Element get_element(int i, int j);
 		double *getPDF_array(int i, int j);
 		bool Pop(PDF_Element *in_lpBuf){this->m_lpBuf = in_lpBuf; return true;}
-		bool Push(double *pdf, int i, int j, int Row, int Col, int cnt, int length, bool verbose);
+		bool Push(double *pdf, int i, int j, int cnt, int length, bool verbose);
 		bool clear(bool verbose);
 		//PDF_Element_AWGN operator ()(int i, int j);
 
@@ -129,18 +131,18 @@ class PDF_MATRIX
 		//bool pdf_multiply_convolution(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN);	  
 
 		//bool pdf_convolution(PDF_Element const in_PDF1, PDF_Element in_PDF2, PDF_Element out_PDF, bool verbose);
-		PDF_Element pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2, bool verbose);
+		
 	    bool pdf_convolution_RAYLEIGH(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose);
 	    bool pdf_convolution_AWGN(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose); 
 		bool pdf_multiply_convolution(PDF_Element const in_PDF1, PDF_Element const in_PDF2, PDF_Element out_PDF, bool verbose);
 
-	    bool matrix_row_update(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN, bool verbose);
+	    //PDF_MATRIX matrix_row_update(PDF_MATRIX const in_MATRIX, bool is_AWGN, bool verbose);
 	    bool matrix_column_update(PDF_MATRIX const in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN, bool verbose);
 };
 
 
 void OutputDebugStringA(const char *strOutputString);
-bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN, bool verbose);
+PDF_MATRIX matrix_row_update(PDF_MATRIX const in_MATRIX, bool is_AWGN, bool verbose);
 bool matrix_column_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN, bool verbose);
 bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[], double infor, bool verbose);
 

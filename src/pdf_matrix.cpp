@@ -1,6 +1,7 @@
 #include <iostream> //standar library
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "math.h"   //sorce code catalogue
 #include "pdf_matrix.hpp"
 #include "integral.hpp"
@@ -21,7 +22,7 @@ PDF_MATRIX::PDF_MATRIX()
 	is_AWGN = true;
 
 	this->m_lpBuf = new PDF_Element[matrix_Size];
-	memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element)); // assign 0 for this memory
+	//memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element)); // assign 0 for this memory
 }
 
 
@@ -34,7 +35,7 @@ PDF_MATRIX::PDF_MATRIX(int row, int col)
 	is_AWGN = true;
 
 	this->m_lpBuf = new PDF_Element[matrix_Size];
-	memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element));
+	//memset(m_lpBuf,0,Row*Col*sizeof(PDF_Element));
 }
 
 
@@ -48,7 +49,8 @@ PDF_MATRIX::~PDF_MATRIX()
 	//	delete[] this->m_lpBuf_AWGN;
 	//	delete[] this->m_lpBuf_RAYLEIGH;
 	//}
-	delete[] this->m_lpBuf;
+	if(m_lpBuf != NULL)
+		delete[] this->m_lpBuf;
 }
 
 
@@ -60,7 +62,7 @@ PDF_Element PDF_MATRIX::operator ()(int i, int j, int Col, bool is_AWGN)
     //	return *(m_lpBuf_AWGN + ((i-1) * Col + (j-1)) * sizeof(PDF_Element_AWGN));
     //else
     //	return *(m_lpBuf_RAYLEIGH + ((i-1) * Col + (j-1)) * sizeof(PDF_Element_RAYLEIGH));
-    return *(m_lpBuf + ((i-1) * Col + (j-1)) * sizeof(PDF_Element));
+    return *(m_lpBuf + (i * Col + j) * sizeof(PDF_Element));
 }
 
 
@@ -68,31 +70,21 @@ PDF_MATRIX & PDF_MATRIX::operator = (PDF_MATRIX& obj)
 {
 	printf(" = Copying0 \n"); 
     // Unsafe
-    int matrix_Size = Row * Col;
-	double  min = -DELTA_RAYLEIGH;
-	double  max = DELTA_RAYLEIGH;
-	double  delta = QUANTIZE_DELTA;
+    int  matrix_Size = obj.Row * obj.Col;
 
-	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;   
+	int  length = obj.m_lpBuf[0].length;
+
+	double *pdf_buf = new double[length];
 
 	printf(" matrix_Size is %d and length is %d \n",matrix_Size,length);
 
-    if (m_lpBuf != NULL)
+    if (m_lpBuf)
     {
-    	/*
-    	for (int k = 0; k < matrix_Size; ++k)
-    	{
-    		delete m_lpBuf[k].pdf; 
-    	}
-    	*/
-
     	printf(" = Copying0.3 \n");	
     	
-        //delete [] m_lpBuf;
+        delete [] m_lpBuf;
     }
     // 赋值stack内存的值
-
-    printf(" = Copying0.5 \n");	
 
 	printf(" = Copying1 \n"); 
 
@@ -102,17 +94,45 @@ PDF_MATRIX & PDF_MATRIX::operator = (PDF_MATRIX& obj)
     this-> is_AWGN = obj.is_AWGN;
 
     printf(" = Copying2 \n");
+    printf(" obj.matrix_Size is %d \n", obj.matrix_Size);
+    printf(" matrix_Size is %d \n", matrix_Size);
 
-    PDF_Element* m_lpBuf = new PDF_Element[matrix_Size];
-
-    for (int i = 0; i < matrix_Size; ++i)
+    this-> m_lpBuf = new PDF_Element[this-> matrix_Size];
+       
+    for (int i = 0; i < this-> matrix_Size; ++i)
     {
-    	m_lpBuf[i].length = obj.m_lpBuf[i].length;
+    	
     	for (int j = 0; j < length; ++j)
     	{
-    		m_lpBuf[i].pdf[j] = obj.m_lpBuf[i].pdf[j];
-    	}    	
+    		pdf_buf[j] = obj.m_lpBuf[i].pdf[j];
+    	}
+
+    	this-> m_lpBuf[i].length = obj.m_lpBuf[i].length;
+    	this-> m_lpBuf[i].max = obj.m_lpBuf[i].max;
+    	this-> m_lpBuf[i].min = obj.m_lpBuf[i].min;
+
+    	this-> m_lpBuf[i].pdf = new double [length];
+
+    	for (int j = 0; j < length; ++j)
+    	{
+    		/* code */    		
+    		this-> m_lpBuf[i].pdf[j] = obj.m_lpBuf[i].pdf[j];
+    	}
+
+    	//this-> m_lpBuf[i].pdf = pdf_buf;
+
     }
+
+    printf(" = Copying3 \n");
+
+	for (int k = 0; k < obj.m_lpBuf[0].length; ++k)
+	{
+		std::cout <<"element pdf is: "<< this-> m_lpBuf[180].pdf[k] << endl;
+		//printf("element pdf %d is %f \n",k,HB.get_element(10, 3).pdf[k]);
+	}
+
+	if (pdf_buf)
+    	delete [] pdf_buf;
     
     return *this;
 }
@@ -135,36 +155,42 @@ double *PDF_MATRIX::getPDF_array(int i, int j)
 	double  *tmp_pdf = new double [length];
 
     //return true;
-    return m_lpBuf[i * 60 + j].pdf;
+    return m_lpBuf[i * Row + j].pdf;
 }
 
 
-bool PDF_MATRIX::Push(double element_pdf[], int i, int j, int Row, int Col, int index, int length, bool verbose)
+bool PDF_MATRIX::Push(double element_pdf[], int i, int j, int index, int length, bool verbose)
 {
 	int idx;
+	double *element_pdf_buffer = new double[length]; //如果不重新申请一个buffer空间，直接把外部的 pdf_tmp 地址传给m_lpBuf[idx].pdf， 那如果外部 pdf_tmp 修改，则所有m_lpBuf[idx].pdf会跟着改变
 
 	if(!index)
 		idx = i * Col + j;
 	else
 		idx = index;
 
-	if(verbose)
-	{
-		for (int l = 0; l < length; ++l)	
-		{
-			printf("element_pdf is %f\n",element_pdf[l]);
-		}
+	//if(verbose)
+		printf("Col is %d , idx is %d, while i is %d and j is %d \n", Col,idx,i,j);
 
-		printf("length is %d\n",length);
+	for (int l = 0; l < length; ++l)	
+	{
+		element_pdf_buffer[l] = element_pdf[l];
+		if(verbose)
+			printf("element_pdf is %f\n",element_pdf[l]);
 	}
+
+	if(verbose)
+		printf("length is %d\n",length);
 
 	this->m_lpBuf[idx].length = length;
 
 	//printf("/// 1 /// \n");
 
-	this->m_lpBuf[idx].pdf = element_pdf;
+	this->m_lpBuf[idx].pdf = element_pdf_buffer;
 		/* code */
 	//printf("/// 2 /// \n");
+
+	//delete [] element_pdf_buffer;
 
 	return true;
 }
@@ -210,22 +236,22 @@ bool PDF_MATRIX::pdf_convolution_RAYLEIGH(PDF_Element in_PDF1, PDF_Element in_PD
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
 	int  length_power_of_two;
 
-	length_power_of_two = convert_power_of_two(length, verbose);
+	//length_power_of_two = convert_power_of_two(length, verbose);
 
-	double *pdf1 = new double[length_power_of_two];
-	double *pdf2 = new double[length_power_of_two];	
-	double *pdf_out = new double[length_power_of_two];	
+	double *pdf1 = new double[length];
+	double *pdf2 = new double[length];	
+	double *pdf_out = new double[length];	
 
 	pdf1 = in_PDF1.pdf;
 	pdf2 = in_PDF2.pdf;
 
 	pdf2 = quantize_message(pdf_Rayleigh_func, 1, delta, min, max);
 
-	Complex *inVec1 = new Complex[length_power_of_two];
-	Complex *inVec2 = new Complex[length_power_of_two];
-	Complex *outVec4 = new Complex[length_power_of_two];
+	Complex *inVec1 = new Complex[length];
+	Complex *inVec2 = new Complex[length];
+	Complex *outVec4 = new Complex[length];
 
-	for (int i = 0; i < length_power_of_two; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
 			inVec1[i].rl = pdf2[i];
@@ -233,7 +259,7 @@ bool PDF_MATRIX::pdf_convolution_RAYLEIGH(PDF_Element in_PDF1, PDF_Element in_PD
 			inVec1[i].rl = 0;
 	}
 
-	for (int i = 0; i < length_power_of_two; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
 			inVec2[i].rl = pdf2[i];
@@ -241,9 +267,9 @@ bool PDF_MATRIX::pdf_convolution_RAYLEIGH(PDF_Element in_PDF1, PDF_Element in_PD
 			inVec2[i].rl = 0;
 	}
 
-	normal_convolution(inVec1, inVec2, length_power_of_two, outVec4, verbose);
+	normal_convolution(inVec1, inVec2, length, outVec4, verbose);
 
-	for (int i = 0; i < length_power_of_two; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
 			pdf_out[i] = outVec4[i].rl;
@@ -251,13 +277,13 @@ bool PDF_MATRIX::pdf_convolution_RAYLEIGH(PDF_Element in_PDF1, PDF_Element in_PD
 			pdf_out[i] = 0;
 	}
 
-	delete [] pdf1;
-	delete [] pdf2;
-	delete [] pdf_out;
+	if(pdf1) delete [] pdf1;
+	if(pdf2) delete [] pdf2;
+	if(pdf_out) delete [] pdf_out;
 
-	delete [] inVec1;
-	delete [] inVec2;
-	delete [] outVec4;
+	if(inVec1) delete [] inVec1;
+	if(inVec2) delete [] inVec2;
+	if(outVec4) delete [] outVec4;
 
 	return true;
 }
@@ -336,13 +362,17 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
 
-	int  length_power_of_two;
+	//int  length_power_of_two;
 
-	length_power_of_two = convert_power_of_two(length, verbose);
+	//length_power_of_two = convert_power_of_two(length, verbose);
 
-	double *pdf1 = new double[length];
-	double *pdf2 = new double[length];
+	//double *pdf_conv1 = new double[length];
+	//double *pdf_conv2 = new double[length];
 	double *pdf_out = new double[length];
+
+	Complex *inVec1 = new Complex[length];
+	Complex *inVec2 = new Complex[length];
+	Complex *outVec_pc = new Complex[length];	     //??????????????????	
 
 	PDF_Element out_PDF;
 	out_PDF.max = MAX_RANGE;
@@ -351,27 +381,37 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 	out_PDF.pdf = new double[length];
 
 	if (verbose)
-	{
 		printf("///// assigning local pdf ///// \n");
 
-		for (int i = 0; i < length; i++)
+	/*
+	for (int i = 0; i < length; i++)
+	{
+		if (verbose)
 		{
 			printf("///// value of in_PDF1.pdf[%d] is %f ///// \n",i,in_PDF1.pdf[i]);
-			//pdf1[i] = in_PDF1.pdf[i];
-			//pdf2[i] = in_PDF2.pdf[i];
 		}
 
-		printf("///// assign local pdf done ///// \n");
+		pdf_conv1[i] = in_PDF1.pdf[i];
+		pdf_conv2[i] = in_PDF2.pdf[i];
 	}
+	*/
 
-	Complex *inVec1 = new Complex[length];
-	Complex *inVec2 = new Complex[length];
-	Complex *outVec4 = new Complex[length];	
+	if (verbose)
+		printf("///// assign local pdf done ///// \n");
+
+	assert(length > 0);
 
 	for (int i = 0; i < length; i++)
 	{
+		if (verbose)
+			printf("///// printing in_PDF1///// \n");
+
 		if(i < length)
-			inVec1[i].rl = pdf2[i];
+		{
+			inVec1[i].rl = 0;
+			inVec1[i].rl = in_PDF1.pdf[i];
+			//inVec1[i].rl = pdf_conv1[i];
+		}
 		else
 			inVec1[i].rl = 0;
 	}
@@ -379,7 +419,8 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
-			inVec2[i].rl = pdf2[i];
+			inVec2[i].rl = in_PDF2.pdf[i];
+			//inVec2[i].rl = pdf_conv2[i];
 		else
 			inVec2[i].rl = 0;
 	}
@@ -387,7 +428,7 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 	if(verbose)
 		printf("///// Begin normal_convolution ///// \n");
 
-	normal_convolution(inVec1, inVec2, length, outVec4, verbose);
+	normal_convolution(inVec1, inVec2, length, outVec_pc, verbose);    //??????????????????
 
 	if(verbose)
 		printf("///// Copying to pdf_out///// \n");
@@ -395,7 +436,7 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
-			pdf_out[i] = outVec4[i].rl;
+			pdf_out[i] = outVec_pc[i].rl;
 		else
 			pdf_out[i] = 0;
 	}
@@ -403,21 +444,21 @@ PDF_Element PDF_MATRIX::pdf_convolution(PDF_Element in_PDF1, PDF_Element in_PDF2
 	for (int i = 0; i < length; i++)
 	{
 		if(i < length)
-			out_PDF.pdf[i] = outVec4[i].rl;
+			out_PDF.pdf[i] = outVec_pc[i].rl;
 		else
 			out_PDF.pdf[i] = 0;
 	}
 
 	//if(verbose)
-	//printf("///// pdf_out assignment done ///// \n");
+	//printf("///// pdf_out assignment done ///// \n");p /a this->m_lpBuf[0]
 
-	delete [] pdf1;
-	delete [] pdf2;
-	delete [] pdf_out;
+	//if(pdf_conv1) delete [] pdf_conv1;
+	//if(pdf_conv2) delete [] pdf_conv2;
+	if(pdf_out) delete [] pdf_out;
 
-	//delete [] inVec1;
-	//delete [] inVec2;
-	//delete [] outVec4;
+	//if(inVec1) delete [] inVec1;
+	//if(inVec2) delete [] inVec2;
+	//if(outVec4) delete [] outVec4;
 
 	//return true;
 	return out_PDF;
@@ -432,9 +473,9 @@ bool PDF_MATRIX::pdf_multiply_convolution(PDF_Element const in_PDF1, PDF_Element
 
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
 
-	int  length_power_of_two;
+	//int  length_power_of_two;
 
-	length_power_of_two = convert_power_of_two(length, verbose);
+	//length_power_of_two = convert_power_of_two(length, verbose);
 
 	double *pdf1 = new double[length];
 	double *pdf2 = new double[length];	
@@ -626,13 +667,13 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 	bool push_seccess = false;
 	bool clear_seccess = false;
 
-	PDF_MATRIX tmp_MATRIX; 
+	PDF_MATRIX tmp_MATRIX(row,col); 
 	tmp_MATRIX = HB;
 
 	printf("*************************************** row and col of tmp_MATRIX are %d and %d ************************************* \n",tmp_MATRIX.getRow(),tmp_MATRIX.getCol());
 
-	PDF_MATRIX tmp_MATRIX2;
-	PDF_MATRIX out_MATRIX;
+	PDF_MATRIX tmp_MATRIX2(row,col);
+	PDF_MATRIX out_MATRIX(row,col);
 
 	printf("*************************************** Line 620 Reached ************************************* \n");
 
@@ -669,17 +710,24 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 
 	printf("******************************* Print the value of pdf in PDF_MATRIX ************************************\n");
 
-	PDF_Element *Buf_tmp = tmp_MATRIX.getPDF();
-	double *pdf_tmp = Buf_tmp[0].pdf;
-
-	printf("/// get pdf_tmp OK ///\n");
-	if(verbose)
+	for (int k = 0; k < length; ++k)
 	{
+		std::cout <<"element pdf is: "<< tmp_MATRIX.get_element(1, 0).pdf[k] << endl;
+		//printf("element pdf %d is %f \n",k,HB.get_element(10, 3).pdf[k]);
+	}	
+
+	PDF_Element *Buf_tmp = tmp_MATRIX.getPDF();
+	
+	printf("/// get pdf_tmp OK ///\n");
+	//if(verbose)
+	//{
+		double *pdf_tmp = Buf_tmp[180].pdf;
+//
 		for(int cnt = 0; cnt < length; cnt++)
 		{
 			printf("/// pdf in tmp_MATRIX is %f ;///\n", pdf_tmp[cnt]);
 		}
-	}
+	//}
 
 	printf("*********************************** Begin to Iterate ************************************\n");
 
@@ -689,8 +737,7 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 		{
 			printf("///////// Updating Row Times: %d //////////\n", m);
 			push_seccess = false;
-			flag_row = matrix_row_update(tmp_MATRIX, tmp_MATRIX2, is_AWGN, verbose);
-			printf("///////// matrix_row_update 'flag_row' is %d //////////\n", flag_row);
+			tmp_MATRIX2 = matrix_row_update(tmp_MATRIX, is_AWGN, verbose);
 			printf("///////// matrix_Size is %d with row: %d and col: %d //////////\n", matrix_Size, row, col);
 			//tmp_MATRIX = tmp_MATRIX2;
 			
@@ -699,7 +746,7 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 			for(int k = 0; k < 2; k = k + 1)
 			{
 				row_update_Buf = tmp_MATRIX2.getPDF();
-				push_seccess = tmp_MATRIX.Push(row_update_Buf[k].pdf, 0, 0, row, col, k, length, verbose);  //
+				push_seccess = tmp_MATRIX.Push(row_update_Buf[k].pdf, 0, 0, k, length, verbose);  //
 				printf("///////// push is seccess or not : %d //////////\n", push_seccess);
 			}//
 
@@ -731,7 +778,7 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 			for(int k = 0; k < 2; k = k + 1)
 			{
 				row_update_Buf = tmp_MATRIX2.getPDF();
-				push_seccess = tmp_MATRIX.Push(row_update_Buf[k].pdf, 0, 0, row, col, k, length, verbose);  //
+				push_seccess = tmp_MATRIX.Push(row_update_Buf[k].pdf, 0, 0, k, length, verbose);  //
 				printf("///////// push is seccess or not : %d //////////\n", push_seccess);
 			}//
 
@@ -759,23 +806,36 @@ bool RCA_predict(PDF_MATRIX HB, double SNR, double p, double R[], double snr_R[]
 }
 
 
-bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN, bool verbose)
+PDF_MATRIX matrix_row_update(PDF_MATRIX in_MATRIX, bool is_AWGN, bool verbose)
 {
 	int row = in_MATRIX.getRow();
 	int col = in_MATRIX.getCol();
 
-	PDF_Element *local_Buf = in_MATRIX.getPDF();
+	int matrix_Size = row * col;
+
+	PDF_Element *local_Buf = new PDF_Element[matrix_Size];
+	PDF_Element *in_MATRIX_buf_ptr = in_MATRIX.getPDF();
+
 	PDF_Element in_PDF_AWGN;
 	PDF_Element in_PDF_RAYLEIGH;
 
 	PDF_Element pdf_element_tmp;
 	PDF_Element pdf_element_iter;
 
+	PDF_MATRIX out_MATRIX(row,col);
+
 	double  min = -DELTA_AWGN;
 	double  max = DELTA_AWGN;
 	double  delta = QUANTIZE_DELTA;
 
 	int  length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;	
+	int  loop_cnt = 0;
+
+	int  i;
+	int  j;
+
+	int  i_max = 0;
+	int  j_max = 0;
 
 	in_PDF_AWGN.max = MAX_RANGE;
 	in_PDF_AWGN.min = MIN_RANGE;
@@ -787,12 +847,22 @@ bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN
 	in_PDF_RAYLEIGH.length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
 	in_PDF_RAYLEIGH.pdf = quantize_message(pdf_Rayleigh_func, 1, delta, min, max);
 
+	for (int p = 0; p < matrix_Size; ++p)
+	{
+		local_Buf[p].max = MAX_RANGE;
+		local_Buf[p].min = MIN_RANGE;
+		local_Buf[p].length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
+
+		local_Buf[p].pdf = in_MATRIX_buf_ptr[p].pdf;
+	}
+	//= in_MATRIX.getPDF();
+
 	//for(int i = 0; i < row; i++)
-	for(int i = 0; i < 1; i++)
+	for(i = 0; i < 2; i++)
 	{
 		printf("///// Entering row iteration %d, while row number is %d \n", i, row);
 
-		for(int j = 0; j < col; j++)
+		for(j = 0; j < col; j++)
 		{
 			//pdf_element_tmp = *(m_lpBuf + ((i * col + j) * sizeof(PDF_Element)));
 			pdf_element_tmp = local_Buf[i * col + j];
@@ -808,8 +878,8 @@ bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN
 			for (int l = 0; l < row - 1; l++)
 			{
 				//out_MATRIX.pdf_convolution_AWGN(PDF_Element_AWGN const in_PDF1, PDF_Element_AWGN const PDF_Element_AWGN, PDF_Element out_PDF);
-				//if(verbose)
-				printf("///// convolution in row update: %d. \n", l);
+				if(verbose)
+					printf("///// convolution in row update: %d. \n", l);
 
 				if(l != i)
 				{
@@ -828,17 +898,27 @@ bool matrix_row_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_AWGN
 				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, verbose);
 
 			//out_MATRIX.m_lpBuf[i * col + j] = pdf_element_tmp;
-			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, row, col, 0, length, verbose);
+			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, 0, length, verbose);
+
+			loop_cnt ++;
+
+			if (i_max < i)
+				i_max = i;
+
+			if (j_max < j)
+				j_max = j;
 		}
 	}
 
-	printf("///// before delete \n");
+	printf("///// before delete, i is %d and j is %d \n",i,j);
 
-	//delete [] local_Buf;
+	delete [] local_Buf;
+
+	//local_Buf = NULL;
 
 	printf("///// after delete \n");
 
-	return true;
+	return out_MATRIX;
 }
 
 
@@ -897,7 +977,7 @@ bool matrix_column_update(PDF_MATRIX in_MATRIX, PDF_MATRIX out_MATRIX, bool is_A
 				pdf_element_tmp = out_MATRIX.pdf_convolution(pdf_element_tmp, in_PDF_RAYLEIGH, verbose);
 
 			//bool push_seccess = out_MATRIX.m_lpBuf[i * col + j] = pdf_element_tmp;
-			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, row, col, 0, length, verbose);
+			bool push_seccess = out_MATRIX.Push(pdf_element_tmp.pdf, i, j, 0, length, verbose);
 		}
 	}
 

@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 	double  	max = DELTA_AWGN;
 	double  	delta = QUANTIZE_DELTA;	
 	int     	length = floor(max/delta) - ceil(min/delta) + 1;
-	double  	*pdf_tmp = new double[length];
+	
 
 	printf("**************************************** Initialization ************************************ \n");
 	length_power_of_two = convert_power_of_two(length, verbose);
@@ -118,9 +118,16 @@ int main(int argc, char *argv[])
 	{
 		for (int j=0; j<N; j++)
 		{
-			printf("/// HB_TMP[%d,%d] is%f//// \n",i,j,HB_TMP[M*j+i]);
+			double  *pdf_tmp = new double[length];
+
+			if(verbose)
+				printf("/// HB_TMP[%d,%d] is%f//// \n",i,j,HB_TMP[M*j+i]);			
+
 			if(HB_TMP[M*j+i] == 1)
 			{
+				//if(verbose)
+					printf("/// The HB_TMP [%d,%d] pdf_tmp is valid//// \n",i,j);
+
 				for(int k = 0; k < length; k++)
 				{
 					//if ((k == (length / 2 - 1)) || (k == (length / 2)))
@@ -128,24 +135,27 @@ int main(int argc, char *argv[])
 						pdf_tmp[k] = 1;
 					else
 						pdf_tmp[k] = 0;
-
-					//printf("/// pdf_tmp[%d]  is  %f//// \n",k, pdf_tmp[k]);
-				}			
+				}
 			}
 
 			else
 			{
-				for(int k = 0; k < length; k++)
+				//if(verbose)
+					printf("/// The HB_TMP [%d,%d] pdf_tmp is zero//// \n",i,j);
+
+				for(int id = 0; id < length; id++)
 				{
-					pdf_tmp[k] = 0;
-					//printf("/// pdf_tmp[%d]  is  %f//// \n",k, pdf_tmp[k]);
+					pdf_tmp[id] = 0;
 				}	
 			}
 
 			if(verbose)
 				printf("/// Pdf_tmp assignment Done //// \n");
 
-			HB.Push(pdf_tmp, i, j, M, N, 0, length, verbose);
+			HB.Push(pdf_tmp, i, j, 0, length, verbose);
+
+			if(pdf_tmp)
+				delete [] pdf_tmp;
 		}
 	}
 
@@ -166,9 +176,9 @@ int main(int argc, char *argv[])
 
 	std::cout <<"element length: "<< HB.get_element(61, 61).length << endl;
 
-	for (int k = (length - 1) / 2; k < length; ++k)
+	for (int k = 0; k < length; ++k)
 	{
-		//std::cout <<"element pdf is: "<< HB.get_element(1, 1).pdf[k] << endl;
+		std::cout <<"element pdf is: "<< HB.get_element(1, 1).pdf[k] << endl;
 		//printf("element pdf %d is %f \n",k,HB.get_element(10, 3).pdf[k]);
 	}
 	

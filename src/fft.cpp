@@ -219,7 +219,7 @@ bool Fft::ifft(Complex const inVec[], int const len, Complex outVec[])
 		for (int m = r - 1; m >= 0; m--) {
 			index += (1 && (i & (1 << m))) << (r - m - 1);
 		}
-		outVec[i].rl = X_rl[index];
+		outVec[i].rl = X_rl[index];    //??????????????????
 		outVec[i].im = X_im[index];
 		//sprintf(msg + 6, "X_rl[i]: %lf, %lf,  index: %d", out_rl[i], out_im[i], index);
 		//OutputDebugStringA(msg);

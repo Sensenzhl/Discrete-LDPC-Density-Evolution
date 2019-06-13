@@ -4,11 +4,11 @@
 #define INTEGRAL_ITERATION_SIZE                10000000             // iteration number of the integral
 //#define PI                                     3.1415926535897932384626 
 #define VARIANCE_DELTA                         0.00000001 
-#define QUANTIZE_DELTA                         0.1
+#define QUANTIZE_DELTA                         0.01
 #define AWGN_CHANNEL                           true
 
-#define DELTA_AWGN               			   10
-#define DELTA_RAYLEIGH           			   10
+#define DELTA_AWGN               			   20
+#define DELTA_RAYLEIGH           			   20
 
 #define VERBOSE           			           false
 

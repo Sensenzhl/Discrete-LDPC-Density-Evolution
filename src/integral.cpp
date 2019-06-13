@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <Eigen/Dense>
 
 #include "math.h"
@@ -204,7 +205,7 @@ double quantize_number(double w, double delta)
 	else
 		Q_value = 0;
 
-	Q_value_quantized = Q_value;	
+	Q_value_quantized = Q_value;
 
 	return Q_value_quantized;
 }
@@ -286,7 +287,7 @@ double *quantize_message(double(*f)(double, double), double variance, double del
 {
 	double Q_value;
 	int    length = floor(max/QUANTIZE_DELTA) - ceil(min/QUANTIZE_DELTA) + 1;
-	int    j = 0;	
+	int    j = 0;
 	double k_low = ceil(min/QUANTIZE_DELTA);
 	double k_max = max / QUANTIZE_DELTA;
 	double i;
@@ -294,21 +295,32 @@ double *quantize_message(double(*f)(double, double), double variance, double del
 	int    idx;
 	double *Q_value_quantized = new double[length];
 
+	//assert(length < 10);
+
 	for (int k = k_low; k < k_max; k++)
 	{
 		i = k * QUANTIZE_DELTA;
 		w = f(i, variance);
 
 		if(w >= delta / 2)
-			Q_value = delta * floor(w/delta + 1/2);
+			Q_value = delta * floor(w/delta + 1.0/2);
 		else if(w <= -delta / 2)
-			Q_value = delta * ceil(w/delta - 1/2);
+			Q_value = delta * ceil(w/delta - 1.0/2);
 		else
 			Q_value = 0;
 
-		idx = (int)(k-k_low);
+		if(k == 0)
+		{
+			printf("floor is %f\n", floor(w/delta + 1.0/2));
+			printf("ceil is %f\n", ceil(w/delta + 1.0/2));
+			printf("Q_value is %f\n", Q_value);
+		}
 
-		Q_value_quantized[idx] = Q_value;	
+		idx = (int)(k - k_low);
+
+		assert(idx < length);
+
+		Q_value_quantized[idx] = Q_value;
 	}
 
 	return Q_value_quantized;
@@ -363,8 +375,8 @@ bool normal_convolution(Complex inVec1[], Complex inVec2[], int vecLen, Complex 
 	t2.fft(inVec2, vecLen, outVec2);
 	t3.multiply(outVec,outVec2,length_power_of_two, outVec3);
 
-	t.ifft(outVec, length_power_of_two, outVec4);
-
+	t.ifft(outVec, length_power_of_two, outVec4);      //??????????????????
+ 
 	if(verbose)
 		printf("///// FFT Finished///// \n");
 
